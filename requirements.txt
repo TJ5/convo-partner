@@ -2,3 +2,4 @@ openai
 jupyter
 SpeechRecognition
 pyaudio
+google-api-python-client
