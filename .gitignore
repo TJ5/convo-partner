@@ -1,1 +1,3 @@
 .venv/*
+secret_key.txt
+.vscode/*
