@@ -1,3 +1,4 @@
 openai
 jupyter
 SpeechRecognition
+pyaudio
