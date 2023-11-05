@@ -1,7 +1,6 @@
 import timeit
 
 import streamlit as st
-import os
 import openai
 import speech_recognition as sr
 from gtts import gTTS
@@ -12,7 +11,7 @@ import base64
 from profiles import get_mode_starting_messages, MODES, MODES_VERBS
 
 GPT_MODEL = "gpt-4"
-STATES = ["AWAITING_INPUT", "LISTENING", "RESPONDING", "ENDED_CONVERSATION"]
+STATES = ["AWAITING_INPUT", "LISTENING", "UNDERSTANDING", "RESPONDING", "ENDED_CONVERSATION"]
 # Load API keys
 with open('openai_key.txt') as f:
     openai.api_key = f.read()
@@ -78,14 +77,14 @@ def autoplay_audio(file_path: str):
 def set_end_flag(end_conversation: bool):
     """Sets session state end_conversation to end_conversation"""
     if end_conversation:
-        set_state(3)
+        set_state(4)
         st.session_state['session_strings'] = []
         st.session_state['session_strings'].append(INITIAL_MESSAGES[-1]['content'])
         st.session_state['user_score'] = 0
         st.session_state['has_audio'] = False
         st.session_state['user_audio'] = None
     else:
-        if st.session_state['current_state'] == STATES[3]:
+        if st.session_state['current_state'] == STATES[4]:
             set_state(0)
     return json.dumps({
         "conversation_terminated": end_conversation
@@ -101,28 +100,6 @@ def increment_user_score(message_score: int):
         "message_score": message_score
     })
 
-
-functions = [
-    {
-        "name": "increment_user_score",
-        "description": """Call this function every time! Adds an integer from 0 to 10 to the user's score, representing how well they responded.""",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "message_score": {
-                    "type ": "integer",
-                    "description": "A score from 0 to 10 representing how good the user's last response was. 10 is a complex, grammatically correct, and relevant response while a 0 is a poor or incorrect response."
-                }
-            },
-            "required": ["message_score"]
-        }
-    },
-]
-
-available_functions = {
-    "increment_user_score": increment_user_score
-}
-
 st.markdown(f"# ***{MODES_VERBS[st.session_state['mode']]}*** with Maiya")
 st.sidebar.markdown("# You have earned ***{}*** points".format(st.session_state['user_score']))
 for mode in MODES:
@@ -130,7 +107,7 @@ for mode in MODES:
 
 # st.sidebar.text("User Score: {}".format(st.session_state['user_score']))
 st.sidebar.markdown("### Currently in  ***{}***  mode".format(st.session_state['mode']))
-if st.session_state['current_state'] == STATES[3]:
+if st.session_state['current_state'] == STATES[4]:
     st.sidebar.button("Start Conversation", on_click=set_end_flag, args=(False,))
 else:
     st.sidebar.button("End Conversation", on_click=set_end_flag, args=(True,))
@@ -138,7 +115,7 @@ if st.session_state['current_state'] == STATES[1]:
     # Listen to user's speech
     with m as source:
         r.adjust_for_ambient_noise(source)
-        st.session_state['user_audio'] = r.listen(source)
+        st.session_state['user_audio'] = r.listen(source, timeout=5, phrase_time_limit=5)
     set_state(2)
     st.rerun()
 # Convert speech to text
@@ -153,42 +130,28 @@ if st.session_state['current_state'] == STATES[2]:
             # Add user's message to the conversation
             messages.append({"role": "user", "content": user_speech})
             # Get a response from OpenAI API
+        except sr.UnknownValueError:
+            st.session_state['session_strings'].append("Sorry, I couldn't understand that. Please try again.")
+        except sr.RequestError as e:
+            st.session_state['session_strings'].append(
+                "Could not request results from Google Speech Recognition service;")
+        set_state(3)
+        st.rerun()
+if st.session_state['current_state'] == STATES[3]:
+    with st.spinner("Loading..."):
+        try:
             start_time = timeit.default_timer()
             response = openai.ChatCompletion.create(
                 model=GPT_MODEL,
-                messages=messages,
-                functions=functions
+                messages=messages
             )
+            print(f'Response: {response}')
             elapsed = timeit.default_timer() - start_time
             print("Time elapsed for GPT: {}".format(elapsed))
             assistant_response = response.choices[0].message
-
-            # Check if a function was called
-            if assistant_response.get('function_call'):
-                function_name = assistant_response["function_call"]["name"]
-                function_to_call = available_functions[function_name]
-                function_args = json.loads(assistant_response["function_call"]["arguments"])
-
-                if function_name == "increment_user_score":
-                    function_response = function_to_call(
-                        message_score=function_args.get("message_score")
-                    )
-
-                messages.append(assistant_response)
-                messages.append({"role": "function", "name": function_name, "content": function_response})
-
-                # start_time = timeit.default_timer()
-                # response = openai.ChatCompletion.create(
-                #     model=GPT_MODEL,
-                #     messages=messages,
-                # )  # get a new response from GPT where it can see the function response
-                # elapsed = timeit.default_timer() - start_time
-                # print("Time elapsed for GPT (no functions): {}".format(elapsed))
-
-                # assistant_response = response.choices[0].message
-                # messages.append(assistant_response)
-
+            print(f'Assistant Response: {assistant_response.content}')
             st.session_state['session_strings'].append(f"**Maiya:**  {assistant_response.content}")
+            messages.append({'role': 'assistant', 'content': assistant_response.content})
             start_time = timeit.default_timer()
             tts = gTTS(text=assistant_response.content, lang='en', slow=False, tld='us')
             time_elapsed = timeit.default_timer() - start_time
@@ -198,6 +161,8 @@ if st.session_state['current_state'] == STATES[2]:
             # audio.speedup(playback_speed=1.4).export("response.mp3", format="mp3")
             st.session_state['has_audio'] = True
             st.session_state['user_audio'] = None
+        except AssertionError as e:
+            print(f'AssertionError: {assistant_response.content}')
         except sr.UnknownValueError:
             st.session_state['session_strings'].append("Sorry, I couldn't understand that. Please try again.")
         except sr.RequestError as e:
@@ -207,7 +172,7 @@ if st.session_state['current_state'] == STATES[2]:
     st.rerun()
 
 # If user chooses to end the conversation
-if st.session_state['current_state'] == STATES[3]:
+if st.session_state['current_state'] == STATES[4]:
     st.write("The conversation has ended. If you'd like to start again, click Start Conversation.")
 else:
     # Print the messages in the session state
@@ -228,6 +193,8 @@ if st.session_state['current_state'] == STATES[0]:
 elif st.session_state['current_state'] == STATES[1]:
     st.button("Listening...", disabled=True)
 elif st.session_state['current_state'] == STATES[2]:
+    st.button("Understanding Input...", disabled=True)
+elif st.session_state['current_state'] in STATES[3]:
     st.button("Loading Response...", disabled=True)
 else:
     st.button("Start Speaking", disabled=True)
