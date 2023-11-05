@@ -6,6 +6,7 @@ from gtts import gTTS
 from pydub import AudioSegment
 import json
 import base64
+import keyboard as kb
 
 GPT_MODEL = "gpt-4"
 STATES = ["AWAITING_INPUT", "LISTENING", "RESPONDING", "ENDED_CONVERSATION"]
@@ -155,6 +156,14 @@ elif st.session_state['current_state'] == STATES[2]:
 else:
     st.button("Start Speaking", disabled=True)
 
+def on_space(): #NOTE TO FUTURE ME: THis solution doesn't work because streamlit + multithreading / async calls = :(
+    if st.session_state.get('current_state'):
+        if st.session_state['current_state'] == STATES[0]:
+            set_state(1)
+            st.rerun()
+    else:
+        print(st.session_state)
+kb.add_hotkey('space', on_space)
 st.sidebar.text("User Score: {}".format(st.session_state['user_score']))
 if st.session_state['current_state'] == STATES[3]:
     st.sidebar.button("Start Conversation", on_click=set_end_flag, args=(False,))
