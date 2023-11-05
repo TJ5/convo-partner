@@ -2,7 +2,8 @@ _COMMON_STARTING = [
     {"role": "system", "content": "You are an English tutor holding a conversation with a student."},
 ]
 
-MODES = ['free', 'grammar', 'vocabulary']
+MODES = ['Free Conversation', 'Grammar Practice', 'Vocabulary Builder']
+MODES_VERBS = {MODES[0]: 'Converse', MODES[1]: 'Practice grammar', MODES[2]: 'learn new words'}
 
 FREE_CONVERSATION = [
     *_COMMON_STARTING,
@@ -18,7 +19,7 @@ FREE_CONVERSATION = [
                                   "between 0 and 10 representing how good the student's sentence is. Consider the "
                                   "complexity of the sentence, the relevance of the sentence to the current topic, "
                                   "and the student's grammar. If the sentence does not make sense, assign a score of 0."},
-    {"role": "system", "content": "Start the conversation by asking the student what they want to talk about."},
+    {"role": "assistant", "content": "What would you like to talk about?"},
 ]
 
 GRAMMAR_PRACTICE = [
@@ -32,14 +33,14 @@ GRAMMAR_PRACTICE = [
                                   "between 0 and 10 representing how good the student's sentence is. Consider how "
                                   "well the student used the grammar topic, the complexity of the sentence, and the "
                                   "relevance of the sentence. If the sentence does not make sense, assign a score of 0."},
-    {"role": "system", "content": "Start the conversation by asking the student what they want to practice."},
+    {"role": "assistant", "content": "What grammar topics do you have trouble with?"},
 ]
 
 
 def get_mode_starting_messages(mode: str):
-    if mode == 'free':
+    if mode == MODES[0]:
         return FREE_CONVERSATION
-    elif mode == 'grammar':
+    elif mode == MODES[1]:
         return GRAMMAR_PRACTICE
     else:
         return []
