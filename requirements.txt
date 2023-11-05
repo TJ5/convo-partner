@@ -18,5 +18,5 @@ simpleaudio
 #librosa
 #soundfile~=0.12.1
 numpy~=1.22.0
-#sounddevice
+sounddevice
 #pyrubberband

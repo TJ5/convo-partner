@@ -3,8 +3,12 @@ import openai
 import speech_recognition as sr
 import time
 import json
+from gtts import gTTS
+from playsound import playsound
+from pydub import AudioSegment
 
 GPT_MODEL = "gpt-4"
+
 with open('openai_key.txt') as f:
     openai.api_key = f.read()
 
@@ -18,18 +22,26 @@ m = sr.Microphone()
 # Starting messages for the conversation
 messages = [
     {"role": "system", "content": "You are an English tutor holding a conversation with a student."},
-    {"role": "system", "content": "Your job is to evaluate how good the student's English is by by calling the increment_user_score function every message."},
-    {"role": "system", "content": "If the student responds in a nonsensical or incorrect way, correct them as best you can or state that you do not understand."},
-    {"role": "system", "content": "Otherwise, respond to the student and ask follow up questions to keep the conversation going."},
-    {"role": "system", "content": "When you assign evaluation scores, assign more points for more complex responses, such as responses that contain multiple sentences or complex words."},
+    {"role": "system",
+     "content": "Your job is to evaluate how good the student's English is by by calling the increment_user_score function every message."},
+    {"role": "system",
+     "content": "If the student responds in a nonsensical or incorrect way, correct them as best you can or state that you do not understand."},
+    {"role": "system",
+     "content": "Otherwise, respond to the student and ask follow up questions to keep the conversation going."},
+    {"role": "system",
+     "content": "When you assign evaluation scores, assign more points for more complex responses, such as responses that contain multiple sentences or complex words."},
     {"role": "system", "content": "If a sentence is incomplete, ask the student to finish their thought."},
-    {"role": "system", "content": "If the student is confused or does not know how to answer, offer suggestions. For example, if they do not know how to answer about how the weather is, ask them if it is sunny or rainy."},
-    {"role": "system", "content": "Make sure to assign evaluation scores every message to reward growth and improvement."},
+    {"role": "system",
+     "content": "If the student is confused or does not know how to answer, offer suggestions. For example, if they do not know how to answer about how the weather is, ask them if it is sunny or rainy."},
+    {"role": "system",
+     "content": "Make sure to assign evaluation scores every message to reward growth and improvement."},
     {"role": "system", "content": "If responses are consistently too short, ask the student to elaborate. For example, if you ask the student for their hobby, and they respond with just one word, ask the student to say more."},
     {"role": "assistant", "content": "Hello, what do you want to talk about?"}
 ]
 
 END_CONVERSATION = False
+
+
 def set_end_flag(end_conversation: bool):
     """Sets END_CONVERSATION to end_conversation"""
     global END_CONVERSATION
@@ -37,7 +49,10 @@ def set_end_flag(end_conversation: bool):
     return json.dumps({
         "conversation_terminated": END_CONVERSATION
     })
+
+
 user_score = 0
+
 
 def increment_user_score(message_score: int):
     """Increments user_score by message_score"""
@@ -47,6 +62,7 @@ def increment_user_score(message_score: int):
         "user_score": user_score,
         "message_score": message_score
     })
+
 
 functions = [
     {
@@ -84,7 +100,6 @@ available_functions = {
     "increment_user_score": increment_user_score
 }
 
-
 print("Assistant: Hello, what do you want to talk about?")
 
 # Conversation loop
@@ -109,7 +124,7 @@ while True:
     except sr.RequestError as e:
         print("Could not request results from Google Speech Recognition service; {0}".format(e))
         break
-    
+
     print(user_speech)
     # Add user's message to the conversation
     messages.append({"role": "user", "content": user_speech})
@@ -140,15 +155,19 @@ while True:
 
         messages.append(assistant_response)
         messages.append({"role": "function", "name": function_name, "content": function_response})
-        
+
         response = openai.ChatCompletion.create(
             model=GPT_MODEL,
             messages=messages,
         )  # get a new response from GPT where it can see the function response
 
         assistant_response = response.choices[0].message
-        messages.append(assistant_response)    
-        
-    
+        messages.append(assistant_response)
+
     print(f"[User Score: {user_score}] Assistant: {assistant_response.content}")
+    tts = gTTS(text=assistant_response.content, lang='en', slow=False, tld='us')
+    tts.save("response.mp3")
+    audio = AudioSegment.from_mp3("response.mp3")
+    audio.speedup(playback_speed=1.5).export("response.mp3", format="mp3")
+    playsound("response.mp3")
     messages.append(assistant_response)
