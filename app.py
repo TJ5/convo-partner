@@ -170,59 +170,60 @@ if st.session_state['current_state'] == STATES[1]:
     st.rerun()
 # Convert speech to text
 if st.session_state['current_state'] == STATES[2]:
-    try:
-        user_speech = r.recognize_google(st.session_state['user_audio'])
-        st.session_state['session_strings'].append(f"**You:** {user_speech}")
-        # Add user's message to the conversation
-        messages.append({"role": "user", "content": user_speech})
-        # Get a response from OpenAI API
-        response = openai.ChatCompletion.create(
-            model=GPT_MODEL,
-            messages=messages,
-            functions=functions
-        )
-
-        assistant_response = response.choices[0].message
-
-        # Check if a function was called
-        if assistant_response.get('function_call'):
-            function_name = assistant_response["function_call"]["name"]
-            function_to_call = available_functions[function_name]
-            function_args = json.loads(assistant_response["function_call"]["arguments"])
-
-            if function_name == "set_end_flag":
-                function_response = function_to_call(
-                    end_conversation=function_args.get("end_conversation")
-                )
-            elif function_name == "increment_user_score":
-                function_response = function_to_call(
-                    message_score=function_args.get("message_score")
-                )
-
-            messages.append(assistant_response)
-            messages.append({"role": "function", "name": function_name, "content": function_response})
-
+    with st.spinner("Loading..."):
+        try:
+            user_speech = r.recognize_google(st.session_state['user_audio'])
+            st.session_state['session_strings'].append(f"**You:** {user_speech}")
+            # Add user's message to the conversation
+            messages.append({"role": "user", "content": user_speech})
+            # Get a response from OpenAI API
             response = openai.ChatCompletion.create(
                 model=GPT_MODEL,
                 messages=messages,
-            )  # get a new response from GPT where it can see the function response
+                functions=functions
+            )
 
             assistant_response = response.choices[0].message
-            messages.append(assistant_response)
 
-        st.session_state['session_strings'].append(f"**Assistant:** {assistant_response.content}")
-        tts = gTTS(text=assistant_response.content, lang='en', slow=False, tld='us')
-        tts.save("response.mp3")
-        audio = AudioSegment.from_mp3("response.mp3")
-        audio.speedup(playback_speed=1.2).export("response.mp3", format="mp3")
-        # Consider hosting the MP3 and providing a link or using a package to play it directly in the browser
-        #st.audio("response.mp3", format="audio/mp3")
-        st.session_state['has_audio'] = True
-        st.session_state['user_audio'] = None
-    except sr.UnknownValueError:
-        st.session_state['session_strings'].append("Sorry, I couldn't understand that. Please try again.")
-    except sr.RequestError as e:
-        st.session_state['session_strings'].append("Could not request results from Google Speech Recognition service;")
+            # Check if a function was called
+            if assistant_response.get('function_call'):
+                function_name = assistant_response["function_call"]["name"]
+                function_to_call = available_functions[function_name]
+                function_args = json.loads(assistant_response["function_call"]["arguments"])
+
+                if function_name == "set_end_flag":
+                    function_response = function_to_call(
+                        end_conversation=function_args.get("end_conversation")
+                    )
+                elif function_name == "increment_user_score":
+                    function_response = function_to_call(
+                        message_score=function_args.get("message_score")
+                    )
+
+                messages.append(assistant_response)
+                messages.append({"role": "function", "name": function_name, "content": function_response})
+
+                response = openai.ChatCompletion.create(
+                    model=GPT_MODEL,
+                    messages=messages,
+                )  # get a new response from GPT where it can see the function response
+
+                assistant_response = response.choices[0].message
+                messages.append(assistant_response)
+
+            st.session_state['session_strings'].append(f"**Assistant:** {assistant_response.content}")
+            tts = gTTS(text=assistant_response.content, lang='en', slow=False, tld='us')
+            tts.save("response.mp3")
+            audio = AudioSegment.from_mp3("response.mp3")
+            audio.speedup(playback_speed=1.2).export("response.mp3", format="mp3")
+            # Consider hosting the MP3 and providing a link or using a package to play it directly in the browser
+            #st.audio("response.mp3", format="audio/mp3")
+            st.session_state['has_audio'] = True
+            st.session_state['user_audio'] = None
+        except sr.UnknownValueError:
+            st.session_state['session_strings'].append("Sorry, I couldn't understand that. Please try again.")
+        except sr.RequestError as e:
+            st.session_state['session_strings'].append("Could not request results from Google Speech Recognition service;")
     set_state(0)
     st.rerun()
 
@@ -233,7 +234,7 @@ else:
     #Print the messages in the session state
     for s in st.session_state['session_strings']:
         st.markdown(s)
-
+        
     if st.session_state['has_audio']:
         try:
             autoplay_audio("response.mp3")
