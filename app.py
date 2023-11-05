@@ -5,6 +5,7 @@ import speech_recognition as sr
 from gtts import gTTS
 from pydub import AudioSegment
 import json
+import base64
 
 GPT_MODEL = "gpt-4"
 
@@ -39,9 +40,35 @@ messages = [
     {"role": "assistant", "content": "Hello, what do you want to talk about?"}
 ]
 
+#Define list of streamlist strings to write 
+if 'session_strings' not in st.session_state:
+    st.session_state['session_strings'] = []
+    st.session_state['session_strings'].append(messages[-1]['content'])
+
+if 'user_score' not in st.session_state:
+    st.session_state['user_score'] = 0
+
+
+#Define global flag to end conversation
 END_CONVERSATION = False
 
+#Helper function to play audio in streamlit
+def autoplay_audio(file_path: str):
+    with open(file_path, "rb") as f:
+        data = f.read()
+        b64 = base64.b64encode(data).decode()
+        md = f"""
+            <audio controls autoplay="true">
+            <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
+            </audio>
+            """
+        st.markdown(
+            md,
+            unsafe_allow_html=True,
+        )
 
+
+#Function for GPT to end conversation
 def set_end_flag(end_conversation: bool):
     """Sets END_CONVERSATION to end_conversation"""
     global END_CONVERSATION
@@ -50,16 +77,12 @@ def set_end_flag(end_conversation: bool):
         "conversation_terminated": END_CONVERSATION
     })
 
-
-user_score = 0
-
-
+#Function for GPT to increment user score
 def increment_user_score(message_score: int):
     """Increments user_score by message_score"""
-    global user_score
-    user_score += message_score
+    st.session_state['user_score'] += message_score
     return json.dumps({
-        "user_score": user_score,
+        "user_score": st.session_state['user_score'],
         "message_score": message_score
     })
 
@@ -102,12 +125,8 @@ available_functions = {
 
 st.title("English Tutor Conversation")
 
-st.sidebar.text("User Score: {}".format(user_score))
+st.sidebar.text("User Score: {}".format(st.session_state['user_score']))
 st.sidebar.button("End Conversation", on_click=set_end_flag, args=(True,))
-
-# Display starting messages
-for message in messages:
-    st.write("{}: {}".format(message["role"], message["content"]))
 
 # Check if user wants to speak
 if st.button("Start Speaking"):
@@ -120,7 +139,7 @@ if st.button("Start Speaking"):
     # Convert speech to text
     try:
         user_speech = r.recognize_google(audio)
-        st.write("You:", user_speech)
+        st.session_state['session_strings'].append(f"You: {user_speech}")
         # Add user's message to the conversation
         messages.append({"role": "user", "content": user_speech})
 
@@ -159,19 +178,23 @@ if st.button("Start Speaking"):
             assistant_response = response.choices[0].message
             messages.append(assistant_response)
 
-        st.write(f"[User Score: {user_score}] Assistant: {assistant_response.content}")
+        st.session_state['session_strings'].append(f"Assistant: {assistant_response.content}")
         tts = gTTS(text=assistant_response.content, lang='en', slow=False, tld='us')
         tts.save("response.mp3")
         audio = AudioSegment.from_mp3("response.mp3")
         audio.speedup(playback_speed=1.2).export("response.mp3", format="mp3")
         # Consider hosting the MP3 and providing a link or using a package to play it directly in the browser
-        st.audio("response.mp3")
-
+        #st.audio("response.mp3", format="audio/mp3")
+        autoplay_audio("response.mp3")
     except sr.UnknownValueError:
-        st.write("Sorry, I couldn't understand that. Please try again.")
+        st.text("Sorry, I couldn't understand that. Please try again.")
     except sr.RequestError as e:
-        st.write("Could not request results from Google Speech Recognition service;", e)
+        st.text("Could not request results from Google Speech Recognition service;", e)
 
 # If user chooses to end the conversation
 if END_CONVERSATION:
     st.write("The conversation has ended. Thank you!")
+
+#Print the messages in the session state
+for s in st.session_state['session_strings']:
+    st.markdown(s)
