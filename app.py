@@ -81,7 +81,8 @@ def set_end_flag(end_conversation: bool):
     if end_conversation:
         set_state(4)
         st.session_state['session_strings'] = []
-        st.session_state['session_strings'].append(INITIAL_MESSAGES[-1]['content'])
+        if len(INITIAL_MESSAGES):
+            st.session_state['session_strings'].append(INITIAL_MESSAGES[-1]['content'])
         st.session_state['has_audio'] = False
         st.session_state['user_audio'] = None
     else:
