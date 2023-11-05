@@ -119,4 +119,4 @@ def get_mode_starting_messages(mode: str):
     elif mode == MODES[1]:
         return GRAMMAR_PRACTICE
     else:
-        return []
+        return VOCABULARY_BUILDER
