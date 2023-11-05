@@ -168,6 +168,6 @@ while True:
     tts = gTTS(text=assistant_response.content, lang='en', slow=False, tld='us')
     tts.save("response.mp3")
     audio = AudioSegment.from_mp3("response.mp3")
-    audio.speedup(playback_speed=1.5).export("response.mp3", format="mp3")
+    audio.speedup(playback_speed=1.2).export("response.mp3", format="mp3")
     playsound("response.mp3")
     messages.append(assistant_response)
