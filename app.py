@@ -85,6 +85,7 @@ def set_end_flag(end_conversation: bool):
             st.session_state['session_strings'].append(INITIAL_MESSAGES[-1]['content'])
         st.session_state['has_audio'] = False
         st.session_state['user_audio'] = None
+        st.session_state['messages'] = get_mode_starting_messages(st.session_state['mode'])
     else:
         if st.session_state['current_state'] == STATES[4]:
             set_state(0)
