@@ -20,3 +20,4 @@ simpleaudio
 numpy~=1.22.0
 sounddevice
 #pyrubberband
+streamlit
