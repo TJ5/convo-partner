@@ -135,10 +135,12 @@ if st.session_state['current_state'] == STATES[2]:
             set_state(3)
         except sr.UnknownValueError:
             st.session_state['session_strings'].append("Sorry, I couldn't understand that. Please try again.")
+            st.session_state['has_audio'] = False
             set_state(0)
         except sr.RequestError as e:
             st.session_state['session_strings'].append(
                 "Could not request results from Google Speech Recognition service;")
+            st.session_state['has_audio'] = False
             set_state(0)
         st.rerun()
 if st.session_state['current_state'] == STATES[3]:
