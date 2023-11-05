@@ -25,7 +25,7 @@ messages = [
     {"role": "system", "content": "If a sentence is incomplete, ask the student to finish their thought."},
     {"role": "system", "content": "If the student is confused or does not know how to answer, offer suggestions. For example, if they do not know how to answer about how the weather is, ask them if it is sunny or rainy."},
     {"role": "system", "content": "Make sure to assign evaluation scores every message to reward growth and improvement."},
-
+    {"role": "system", "content": "If responses are consistently too short, ask the student to elaborate. For example, if you ask the student for their hobby, and they respond with just one word, ask the student to say more."},
     {"role": "assistant", "content": "Hello, what do you want to talk about?"}
 ]
 
