@@ -185,7 +185,6 @@ if st.button("Start Speaking"):
         audio.speedup(playback_speed=1.2).export("response.mp3", format="mp3")
         # Consider hosting the MP3 and providing a link or using a package to play it directly in the browser
         #st.audio("response.mp3", format="audio/mp3")
-        autoplay_audio("response.mp3")
     except sr.UnknownValueError:
         st.text("Sorry, I couldn't understand that. Please try again.")
     except sr.RequestError as e:
@@ -198,3 +197,4 @@ if END_CONVERSATION:
 #Print the messages in the session state
 for s in st.session_state['session_strings']:
     st.markdown(s)
+autoplay_audio("response.mp3")
