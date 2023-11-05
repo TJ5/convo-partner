@@ -4,6 +4,7 @@ import speech_recognition as sr
 import time
 import json
 
+GPT_MODEL = "gpt-4"
 with open('openai_key.txt') as f:
     openai.api_key = f.read()
 
@@ -115,7 +116,7 @@ while True:
 
     # Get a response from OpenAI API
     response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
+        model=GPT_MODEL,
         messages=messages,
         functions=functions
     )
@@ -140,15 +141,13 @@ while True:
         messages.append(assistant_response)
         messages.append({"role": "function", "name": function_name, "content": function_response})
         
-        second_response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
+        response = openai.ChatCompletion.create(
+            model=GPT_MODEL,
             messages=messages,
         )  # get a new response from GPT where it can see the function response
 
-        messages.append(second_response.choices[0].message)
-        print(f"[User Score: {user_score}] Assistant: {second_response.choices[0].message.content}")
-        continue
-    
+        assistant_response = response.choices[0].message
+        messages.append(assistant_response)    
         
     
     print(f"[User Score: {user_score}] Assistant: {assistant_response.content}")
