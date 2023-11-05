@@ -29,7 +29,8 @@ if 'mode' not in st.session_state:
 
 INITIAL_MESSAGES = get_mode_starting_messages(st.session_state['mode'])
 
-messages = INITIAL_MESSAGES.copy()
+if 'messages' not in st.session_state:
+    st.session_state['messages'] = INITIAL_MESSAGES.copy()
 
 # Define list of streamlist strings to write
 if 'session_strings' not in st.session_state:
@@ -116,7 +117,8 @@ if st.session_state['current_state'] == STATES[1]:
     # Listen to user's speech
     with m as source:
         r.adjust_for_ambient_noise(source)
-        st.session_state['user_audio'] = r.listen(source, timeout=5, phrase_time_limit=5)
+        #st.session_state['user_audio'] = r.listen(source, timeout=5, phrase_time_limit=5)
+        st.session_state['user_audio'] = r.listen(source, phrase_time_limit=5)
     set_state(2)
     st.rerun()
 # Convert speech to text
@@ -129,14 +131,15 @@ if st.session_state['current_state'] == STATES[2]:
             print("Time elapsed for recognize_google: {}".format(elapsed))
             st.session_state['session_strings'].append(f"**You:**  {user_speech}")
             # Add user's message to the conversation
-            messages.append({"role": "user", "content": user_speech})
-            # Get a response from OpenAI API
+            st.session_state['messages'].append({"role": "user", "content": user_speech})
+            set_state(3)
         except sr.UnknownValueError:
             st.session_state['session_strings'].append("Sorry, I couldn't understand that. Please try again.")
+            set_state(0)
         except sr.RequestError as e:
             st.session_state['session_strings'].append(
                 "Could not request results from Google Speech Recognition service;")
-        set_state(3)
+            set_state(0)
         st.rerun()
 if st.session_state['current_state'] == STATES[3]:
     with st.spinner("Loading..."):
@@ -144,7 +147,7 @@ if st.session_state['current_state'] == STATES[3]:
             start_time = timeit.default_timer()
             response = openai.ChatCompletion.create(
                 model=GPT_MODEL,
-                messages=messages
+                messages=st.session_state['messages']
             )
             print(f'Response: {response}')
             elapsed = timeit.default_timer() - start_time
@@ -152,7 +155,7 @@ if st.session_state['current_state'] == STATES[3]:
             assistant_response = response.choices[0].message
             print(f'Assistant Response: {assistant_response.content}')
             st.session_state['session_strings'].append(f"**Maiya:**  {assistant_response.content}")
-            messages.append({'role': 'assistant', 'content': assistant_response.content})
+            st.session_state['messages'].append({'role': 'assistant', 'content': assistant_response.content})
             start_time = timeit.default_timer()
             tts = gTTS(text=assistant_response.content, lang='en', slow=False, tld='us')
             time_elapsed = timeit.default_timer() - start_time
