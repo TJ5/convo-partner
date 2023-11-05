@@ -21,3 +21,4 @@ numpy
 sounddevice
 #pyrubberband
 streamlit
+keyboard
