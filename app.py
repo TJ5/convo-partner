@@ -21,7 +21,7 @@ r = sr.Recognizer()
 m = sr.Microphone()
 
 # Starting messages for the conversation
-messages = [
+INITIAL_MESSAGES = [
     {"role": "system", "content": "You are an English tutor holding a conversation with a student."},
     {"role": "system",
      "content": "Your job is to evaluate how good the student's English is by by calling the increment_user_score function every message."},
@@ -40,10 +40,12 @@ messages = [
     {"role": "assistant", "content": "Hello, what do you want to talk about?"}
 ]
 
+messages = INITIAL_MESSAGES.copy()
+
 #Define list of streamlist strings to write 
 if 'session_strings' not in st.session_state:
     st.session_state['session_strings'] = []
-    st.session_state['session_strings'].append(messages[-1]['content'])
+    st.session_state['session_strings'].append(INITIAL_MESSAGES[-1]['content'])
 
 if 'user_score' not in st.session_state:
     st.session_state['user_score'] = 0
@@ -52,7 +54,8 @@ if 'has_audio' not in st.session_state:
     st.session_state['has_audio'] = False
 
 #Define global flag to end conversation
-END_CONVERSATION = False
+if 'end_conversation' not in st.session_state:
+    st.session_state['end_conversation'] = False
 
 #Helper function to play audio in streamlit
 def autoplay_audio(file_path: str):
@@ -72,11 +75,17 @@ def autoplay_audio(file_path: str):
 
 #Function for GPT to end conversation
 def set_end_flag(end_conversation: bool):
-    """Sets END_CONVERSATION to end_conversation"""
-    global END_CONVERSATION
-    END_CONVERSATION = end_conversation
+    """Sets session state end_conversation to end_conversation"""
+    st.session_state['end_conversation'] = end_conversation
+
+    #If we are ending the conversation, dump all old state
+    if end_conversation == True:
+        st.session_state['session_strings'] = []
+        st.session_state['session_strings'].append(INITIAL_MESSAGES[-1]['content'])
+        st.session_state['user_score'] = 0
+        st.session_state['has_audio'] = False
     return json.dumps({
-        "conversation_terminated": END_CONVERSATION
+        "conversation_terminated": st.session_state['end_conversation']
     })
 
 #Function for GPT to increment user score
@@ -128,10 +137,13 @@ available_functions = {
 st.title("English Tutor Conversation")
 
 st.sidebar.text("User Score: {}".format(st.session_state['user_score']))
-st.sidebar.button("End Conversation", on_click=set_end_flag, args=(True,))
+if st.session_state['end_conversation']:
+    st.sidebar.button("Start Conversation", on_click=set_end_flag, args=(False,))
+else:
+    st.sidebar.button("End Conversation", on_click=set_end_flag, args=(True,))
 
 # Check if user wants to speak
-if st.button("Start Speaking"):
+if st.button("Start Speaking") and not st.session_state['end_conversation']:
     # Listen to user's speech
     with m as source:
         r.adjust_for_ambient_noise(source)
@@ -189,20 +201,20 @@ if st.button("Start Speaking"):
         #st.audio("response.mp3", format="audio/mp3")
         st.session_state['has_audio'] = True
     except sr.UnknownValueError:
-        st.text("Sorry, I couldn't understand that. Please try again.")
+        st.session_state['session_strings'].append("Sorry, I couldn't understand that. Please try again.")
     except sr.RequestError as e:
-        st.text("Could not request results from Google Speech Recognition service;", e)
+        st.session_state['session_strings'].append("Could not request results from Google Speech Recognition service;")
 
 # If user chooses to end the conversation
-if END_CONVERSATION:
-    st.write("The conversation has ended. Thank you!")
+if st.session_state['end_conversation']:
+    st.write("The conversation has ended. If you'd like to start again, click Start Conversation.")
+else:
+    #Print the messages in the session state
+    for s in st.session_state['session_strings']:
+        st.markdown(s)
 
-#Print the messages in the session state
-for s in st.session_state['session_strings']:
-    st.markdown(s)
-
-if st.session_state['has_audio']:
-    try:
-        autoplay_audio("response.mp3")
-    except:
-        pass
+    if st.session_state['has_audio']:
+        try:
+            autoplay_audio("response.mp3")
+        except:
+            pass
