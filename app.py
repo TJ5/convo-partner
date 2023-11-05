@@ -56,8 +56,9 @@ def set_state(state: int):
 
 def set_mode(mode: str):
     st.session_state['mode'] = mode
+    #Restart conversation "Turn it off and on again"
     set_end_flag(True)
-
+    set_end_flag(False)
 
 # Helper function to play audio in streamlit
 def autoplay_audio(file_path: str):
