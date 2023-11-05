@@ -48,6 +48,8 @@ if 'session_strings' not in st.session_state:
 if 'user_score' not in st.session_state:
     st.session_state['user_score'] = 0
 
+if 'has_audio' not in st.session_state:
+    st.session_state['has_audio'] = False
 
 #Define global flag to end conversation
 END_CONVERSATION = False
@@ -185,6 +187,7 @@ if st.button("Start Speaking"):
         audio.speedup(playback_speed=1.2).export("response.mp3", format="mp3")
         # Consider hosting the MP3 and providing a link or using a package to play it directly in the browser
         #st.audio("response.mp3", format="audio/mp3")
+        st.session_state['has_audio'] = True
     except sr.UnknownValueError:
         st.text("Sorry, I couldn't understand that. Please try again.")
     except sr.RequestError as e:
@@ -197,4 +200,9 @@ if END_CONVERSATION:
 #Print the messages in the session state
 for s in st.session_state['session_strings']:
     st.markdown(s)
-autoplay_audio("response.mp3")
+
+if st.session_state['has_audio']:
+    try:
+        autoplay_audio("response.mp3")
+    except:
+        pass
