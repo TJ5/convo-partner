@@ -82,7 +82,8 @@ def set_end_flag(end_conversation: bool):
     if end_conversation:
         set_state(4)
         st.session_state['session_strings'] = []
-        st.session_state['session_strings'].append(INITIAL_MESSAGES[-1]['content'])
+        if len(INITIAL_MESSAGES):
+            st.session_state['session_strings'].append(INITIAL_MESSAGES[-1]['content'])
         st.session_state['user_score'] = 0
         st.session_state['has_audio'] = False
         st.session_state['user_audio'] = None
@@ -107,7 +108,7 @@ st.markdown(f"# ***{MODES_VERBS[st.session_state['mode']]}*** with Maiya")
 st.sidebar.markdown("# You have earned ***{}*** points".format(st.session_state['user_score']))
 for mode in MODES:
     st.sidebar.button(mode, on_click=set_mode, args=(mode,))
-
+    
 # st.sidebar.text("User Score: {}".format(st.session_state['user_score']))
 st.sidebar.markdown("### Currently in  ***{}***  mode".format(st.session_state['mode']))
 if st.session_state['current_state'] == STATES[4]:
