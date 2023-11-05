@@ -19,7 +19,7 @@ with open('google_key.txt') as f:
 r = sr.Recognizer()
 m = sr.Microphone()
 
-# Starting messages for the conversation
+# Starting messages_ for the conversation
 messages = [
     {"role": "system", "content": "You are an English tutor holding a conversation with a student."},
     {"role": "system",
