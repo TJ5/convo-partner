@@ -82,7 +82,6 @@ def set_end_flag(end_conversation: bool):
         set_state(4)
         st.session_state['session_strings'] = []
         st.session_state['session_strings'].append(INITIAL_MESSAGES[-1]['content'])
-        st.session_state['user_score'] = 0
         st.session_state['has_audio'] = False
         st.session_state['user_audio'] = None
     else:
@@ -155,11 +154,17 @@ if st.session_state['current_state'] == STATES[3]:
             elapsed = timeit.default_timer() - start_time
             print("Time elapsed for GPT: {}".format(elapsed))
             assistant_response = response.choices[0].message
-            print(f'Assistant Response: {assistant_response.content}')
-            st.session_state['session_strings'].append(f"**Maiya:**  {assistant_response.content}")
-            st.session_state['messages'].append({'role': 'assistant', 'content': assistant_response.content})
+            try:
+                integer_evaluation = int(assistant_response.content[0])
+                increment_user_score(integer_evaluation)
+                assistant_resp_text = assistant_response.content[2:]
+            except ValueError:
+                assistant_resp_text = assistant_response.content
+            print(f'Assistant Response: {assistant_resp_text}')
+            st.session_state['session_strings'].append(f"**Maiya:**  {assistant_resp_text}")
+            st.session_state['messages'].append({'role': 'assistant', 'content': assistant_resp_text})
             start_time = timeit.default_timer()
-            tts = gTTS(text=assistant_response.content, lang='en', slow=False, tld='us')
+            tts = gTTS(text=assistant_resp_text, lang='en', slow=False, tld='us')
             time_elapsed = timeit.default_timer() - start_time
             print("Time elapsed for gTTS: {}".format(time_elapsed))
             tts.save("response.mp3")
