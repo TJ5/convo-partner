@@ -124,7 +124,7 @@ if st.session_state['current_state'] == STATES[1]:
     st.rerun()
 # Convert speech to text
 if st.session_state['current_state'] == STATES[2]:
-    with st.spinner("Loading..."):
+    with st.spinner("Maiya is Thinking..."):
         try:
             start_time = timeit.default_timer()
             user_speech = r.recognize_google(st.session_state['user_audio'])
@@ -145,7 +145,7 @@ if st.session_state['current_state'] == STATES[2]:
             set_state(0)
         st.rerun()
 if st.session_state['current_state'] == STATES[3]:
-    with st.spinner("Loading..."):
+    with st.spinner("Maiya is Formulating a Response..."):
         try:
             start_time = timeit.default_timer()
             response = openai.ChatCompletion.create(
@@ -206,8 +206,8 @@ if st.session_state['current_state'] == STATES[0]:
 elif st.session_state['current_state'] == STATES[1]:
     st.button("Listening...", disabled=True)
 elif st.session_state['current_state'] == STATES[2]:
-    st.button("Understanding Input...", disabled=True)
+    st.button("Parsing Input...", disabled=True)
 elif st.session_state['current_state'] in STATES[3]:
-    st.button("Loading Response...", disabled=True)
+    st.button("Crafting Response...", disabled=True)
 else:
     st.button("Start Speaking", disabled=True)
