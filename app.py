@@ -8,7 +8,7 @@ import json
 import base64
 
 GPT_MODEL = "gpt-4"
-
+STATES = ["AWAITING_INPUT", "LISTENING", "RESPONDING", "ENDED_CONVERSATION"]
 # Load API keys
 with open('openai_key.txt') as f:
     openai.api_key = f.read()
@@ -53,9 +53,14 @@ if 'user_score' not in st.session_state:
 if 'has_audio' not in st.session_state:
     st.session_state['has_audio'] = False
 
-#Define global flag to end conversation
-if 'end_conversation' not in st.session_state:
-    st.session_state['end_conversation'] = False
+if 'user_audio' not in st.session_state: 
+    st.session_state['user_audio'] = None
+
+if 'current_state' not in st.session_state:
+    st.session_state['current_state'] = STATES[0]
+
+def set_state(state: int):
+    st.session_state['current_state'] = STATES[state]
 
 #Helper function to play audio in streamlit
 def autoplay_audio(file_path: str):
@@ -76,16 +81,18 @@ def autoplay_audio(file_path: str):
 #Function for GPT to end conversation
 def set_end_flag(end_conversation: bool):
     """Sets session state end_conversation to end_conversation"""
-    st.session_state['end_conversation'] = end_conversation
-
-    #If we are ending the conversation, dump all old state
-    if end_conversation == True:
+    if end_conversation:
+        set_state(3)
         st.session_state['session_strings'] = []
         st.session_state['session_strings'].append(INITIAL_MESSAGES[-1]['content'])
         st.session_state['user_score'] = 0
         st.session_state['has_audio'] = False
+        st.session_state['user_audio'] = None
+    else:
+        if st.session_state['current_state'] == STATES[3]:
+            set_state(0)
     return json.dumps({
-        "conversation_terminated": st.session_state['end_conversation']
+        "conversation_terminated": end_conversation
     })
 
 #Function for GPT to increment user score
@@ -136,27 +143,38 @@ available_functions = {
 
 st.title("English Tutor Conversation")
 
+#Next State Logic
+if st.session_state['current_state'] == STATES[0]:
+    if st.button("Start Speaking"):
+        set_state(1)
+        st.rerun()
+elif st.session_state['current_state'] == STATES[1]:
+    st.button("Listening...", disabled=True)
+elif st.session_state['current_state'] == STATES[2]:
+    st.button("Loading Response...", disabled=True)
+else:
+    st.button("Start Speaking", disabled=True)
+
 st.sidebar.text("User Score: {}".format(st.session_state['user_score']))
-if st.session_state['end_conversation']:
+if st.session_state['current_state'] == STATES[3]:
     st.sidebar.button("Start Conversation", on_click=set_end_flag, args=(False,))
 else:
     st.sidebar.button("End Conversation", on_click=set_end_flag, args=(True,))
 
-# Check if user wants to speak
-if st.button("Start Speaking") and not st.session_state['end_conversation']:
+if st.session_state['current_state'] == STATES[1]:
     # Listen to user's speech
     with m as source:
         r.adjust_for_ambient_noise(source)
-        st.write("Listening... Speak now!")
-        audio = r.listen(source, phrase_time_limit=5)
-
-    # Convert speech to text
+        st.session_state['user_audio'] = r.listen(source, phrase_time_limit=5)
+    set_state(2)
+    st.rerun()
+# Convert speech to text
+if st.session_state['current_state'] == STATES[2]:
     try:
-        user_speech = r.recognize_google(audio)
+        user_speech = r.recognize_google(st.session_state['user_audio'])
         st.session_state['session_strings'].append(f"You: {user_speech}")
         # Add user's message to the conversation
         messages.append({"role": "user", "content": user_speech})
-
         # Get a response from OpenAI API
         response = openai.ChatCompletion.create(
             model=GPT_MODEL,
@@ -200,13 +218,16 @@ if st.button("Start Speaking") and not st.session_state['end_conversation']:
         # Consider hosting the MP3 and providing a link or using a package to play it directly in the browser
         #st.audio("response.mp3", format="audio/mp3")
         st.session_state['has_audio'] = True
+        st.session_state['user_audio'] = None
     except sr.UnknownValueError:
         st.session_state['session_strings'].append("Sorry, I couldn't understand that. Please try again.")
     except sr.RequestError as e:
         st.session_state['session_strings'].append("Could not request results from Google Speech Recognition service;")
+    set_state(0)
+    st.rerun()
 
 # If user chooses to end the conversation
-if st.session_state['end_conversation']:
+if st.session_state['current_state'] == STATES[3]:
     st.write("The conversation has ended. If you'd like to start again, click Start Conversation.")
 else:
     #Print the messages in the session state
