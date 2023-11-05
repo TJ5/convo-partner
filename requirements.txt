@@ -3,3 +3,5 @@ jupyter
 SpeechRecognition
 pyaudio
 google-api-python-client
+oauth2client
+google-cloud-speech
