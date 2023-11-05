@@ -1,3 +1,5 @@
+import timeit
+
 import streamlit as st
 import os
 import openai
@@ -22,26 +24,6 @@ with open('google_key.txt') as f:
 r = sr.Recognizer()
 m = sr.Microphone()
 
-# Starting messages for the conversation
-# INITIAL_MESSAGES = [
-#     {"role": "system", "content": "You are an English tutor holding a conversation with a student."},
-#     {"role": "system",
-#      "content": "Your job is to evaluate how good the student's English is by by calling the increment_user_score function every message."},
-#     {"role": "system",
-#      "content": "If the student responds in a nonsensical or incorrect way, correct them as best you can or state that you do not understand."},
-#     {"role": "system",
-#      "content": "Otherwise, respond to the student and ask follow up questions to keep the conversation going."},
-#     {"role": "system",
-#      "content": "When you assign evaluation scores, assign more points for more complex responses, such as responses that contain multiple sentences or complex words."},
-#     {"role": "system", "content": "If a sentence is incomplete, ask the student to finish their thought."},
-#     {"role": "system",
-#      "content": "If the student is confused or does not know how to answer, offer suggestions. For example, if they do not know how to answer about how the weather is, ask them if it is sunny or rainy."},
-#     {"role": "system",
-#      "content": "Make sure to assign evaluation scores every message to reward growth and improvement."},
-#     {"role": "system", "content": "If responses are consistently too short, ask the student to elaborate. For example, if you ask the student for their hobby, and they respond with just one word, ask the student to say more."},
-#     {"role": "assistant", "content": "Hello, what do you want to talk about?"}
-# ]
-
 if 'mode' not in st.session_state:
     st.session_state['mode'] = MODES[0]
 
@@ -52,7 +34,7 @@ messages = INITIAL_MESSAGES.copy()
 # Define list of streamlist strings to write
 if 'session_strings' not in st.session_state:
     st.session_state['session_strings'] = []
-    st.session_state['session_strings'].append(f"**Assistant:**  {INITIAL_MESSAGES[-1]['content']}")
+    st.session_state['session_strings'].append(f"**Maiya:**  {INITIAL_MESSAGES[-1]['content']}")
 
 if 'user_score' not in st.session_state:
     st.session_state['user_score'] = 0
@@ -122,28 +104,14 @@ def increment_user_score(message_score: int):
 
 functions = [
     {
-        "name": "set_end_flag",
-        "description": "Ends the current conversation",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "end_conversation": {
-                    "type ": "boolean",
-                    "description": "Whether or not to end the conversation"
-                }
-            },
-            "required": ["end_conversation"]
-        }
-    },
-    {
         "name": "increment_user_score",
-        "description": """Call this function every time! Adds an integer from 100 to 1000 to the user's score, representing how well they responded.""",
+        "description": """Call this function every time! Adds an integer from 0 to 10 to the user's score, representing how well they responded.""",
         "parameters": {
             "type": "object",
             "properties": {
                 "message_score": {
                     "type ": "integer",
-                    "description": "A score from 100 to 1000 representing how good the user's last response was. 1000 is a complex, grammatically correct, and relevant response while a 100 is a poor or incorrect response."
+                    "description": "A score from 0 to 10 representing how good the user's last response was. 10 is a complex, grammatically correct, and relevant response while a 0 is a poor or incorrect response."
                 }
             },
             "required": ["message_score"]
@@ -152,7 +120,6 @@ functions = [
 ]
 
 available_functions = {
-    "set_end_flag": set_end_flag,
     "increment_user_score": increment_user_score
 }
 
@@ -171,24 +138,29 @@ if st.session_state['current_state'] == STATES[1]:
     # Listen to user's speech
     with m as source:
         r.adjust_for_ambient_noise(source)
-        st.session_state['user_audio'] = r.listen(source, phrase_time_limit=5)
+        st.session_state['user_audio'] = r.listen(source)
     set_state(2)
     st.rerun()
 # Convert speech to text
 if st.session_state['current_state'] == STATES[2]:
     with st.spinner("Loading..."):
         try:
+            start_time = timeit.default_timer()
             user_speech = r.recognize_google(st.session_state['user_audio'])
+            elapsed = timeit.default_timer() - start_time
+            print("Time elapsed for recognize_google: {}".format(elapsed))
             st.session_state['session_strings'].append(f"**You:**  {user_speech}")
             # Add user's message to the conversation
             messages.append({"role": "user", "content": user_speech})
             # Get a response from OpenAI API
+            start_time = timeit.default_timer()
             response = openai.ChatCompletion.create(
                 model=GPT_MODEL,
                 messages=messages,
                 functions=functions
             )
-
+            elapsed = timeit.default_timer() - start_time
+            print("Time elapsed for GPT: {}".format(elapsed))
             assistant_response = response.choices[0].message
 
             # Check if a function was called
@@ -197,11 +169,7 @@ if st.session_state['current_state'] == STATES[2]:
                 function_to_call = available_functions[function_name]
                 function_args = json.loads(assistant_response["function_call"]["arguments"])
 
-                if function_name == "set_end_flag":
-                    function_response = function_to_call(
-                        end_conversation=function_args.get("end_conversation")
-                    )
-                elif function_name == "increment_user_score":
+                if function_name == "increment_user_score":
                     function_response = function_to_call(
                         message_score=function_args.get("message_score")
                     )
@@ -209,21 +177,25 @@ if st.session_state['current_state'] == STATES[2]:
                 messages.append(assistant_response)
                 messages.append({"role": "function", "name": function_name, "content": function_response})
 
-                response = openai.ChatCompletion.create(
-                    model=GPT_MODEL,
-                    messages=messages,
-                )  # get a new response from GPT where it can see the function response
+                # start_time = timeit.default_timer()
+                # response = openai.ChatCompletion.create(
+                #     model=GPT_MODEL,
+                #     messages=messages,
+                # )  # get a new response from GPT where it can see the function response
+                # elapsed = timeit.default_timer() - start_time
+                # print("Time elapsed for GPT (no functions): {}".format(elapsed))
 
-                assistant_response = response.choices[0].message
-                messages.append(assistant_response)
+                # assistant_response = response.choices[0].message
+                # messages.append(assistant_response)
 
-            st.session_state['session_strings'].append(f"**Assistant:**  {assistant_response.content}")
+            st.session_state['session_strings'].append(f"**Maiya:**  {assistant_response.content}")
+            start_time = timeit.default_timer()
             tts = gTTS(text=assistant_response.content, lang='en', slow=False, tld='us')
+            time_elapsed = timeit.default_timer() - start_time
+            print("Time elapsed for gTTS: {}".format(time_elapsed))
             tts.save("response.mp3")
-            audio = AudioSegment.from_mp3("response.mp3")
-            audio.speedup(playback_speed=1.2).export("response.mp3", format="mp3")
-            # Consider hosting the MP3 and providing a link or using a package to play it directly in the browser
-            # st.audio("response.mp3", format="audio/mp3")
+            # audio = AudioSegment.from_mp3("response.mp3")
+            # audio.speedup(playback_speed=1.4).export("response.mp3", format="mp3")
             st.session_state['has_audio'] = True
             st.session_state['user_audio'] = None
         except sr.UnknownValueError:
