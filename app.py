@@ -45,7 +45,7 @@ messages = INITIAL_MESSAGES.copy()
 #Define list of streamlist strings to write 
 if 'session_strings' not in st.session_state:
     st.session_state['session_strings'] = []
-    st.session_state['session_strings'].append(INITIAL_MESSAGES[-1]['content'])
+    st.session_state['session_strings'].append(f"**Assistant:** {INITIAL_MESSAGES[-1]['content']}")
 
 if 'user_score' not in st.session_state:
     st.session_state['user_score'] = 0
@@ -172,7 +172,7 @@ if st.session_state['current_state'] == STATES[1]:
 if st.session_state['current_state'] == STATES[2]:
     try:
         user_speech = r.recognize_google(st.session_state['user_audio'])
-        st.session_state['session_strings'].append(f"You: {user_speech}")
+        st.session_state['session_strings'].append(f"**You:** {user_speech}")
         # Add user's message to the conversation
         messages.append({"role": "user", "content": user_speech})
         # Get a response from OpenAI API
@@ -210,7 +210,7 @@ if st.session_state['current_state'] == STATES[2]:
             assistant_response = response.choices[0].message
             messages.append(assistant_response)
 
-        st.session_state['session_strings'].append(f"Assistant: {assistant_response.content}")
+        st.session_state['session_strings'].append(f"**Assistant:** {assistant_response.content}")
         tts = gTTS(text=assistant_response.content, lang='en', slow=False, tld='us')
         tts.save("response.mp3")
         audio = AudioSegment.from_mp3("response.mp3")
